@@ -1,23 +1,20 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabase";
-import { analyzeResume } from "../utils/ai"; // ✅ Import AI Review Function
+import { analyzeResume } from "../utils/ai"; // Ensure AI function is included
 
 interface Applicant {
   id: number;
   name: string;
   email: string;
-  resume_url?: string;
-  created_at?: string;
-  status: string;
-  comments?: string;
+  resume_url: string;
+  created_at: string;
+  ai_feedback?: string;
 }
 
 export default function Dashboard() {
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<string>("All");
-  const [commentInput, setCommentInput] = useState<{ [id: number]: string }>({});
   const [analyzing, setAnalyzing] = useState<number | null>(null);
 
   useEffect(() => {
@@ -31,8 +28,10 @@ export default function Dashboard() {
         .order("created_at", { ascending: false });
 
       if (error) {
+        console.error("❌ Error fetching applicants:", error);
         setError("Failed to fetch applicants.");
       } else {
+        console.log("✅ Applicants fetched:", data);
         setApplicants(data || []);
       }
       setLoading(false);
@@ -41,98 +40,127 @@ export default function Dashboard() {
     fetchApplicants();
   }, []);
 
-  // ✅ AI Resume Review Function
-  const analyzeAndSaveFeedback = async (id: number, resumeUrl: string) => {
-    setAnalyzing(id);
-
-    try {
-      // ✅ Fetch resume file from Supabase Storage
-      const response = await fetch(resumeUrl);
-      const text = await response.text();
-
-      console.log("📄 Extracted Resume Text:", text);
-
-      // ✅ Analyze Resume using AI
-      const feedback = await analyzeResume(text);
-      console.log("🤖 AI Feedback:", feedback);
-
-      // ✅ Save AI feedback in Supabase
-      const { error } = await supabase.from("applications").update({ comments: feedback }).match({ id });
-
-      if (!error) {
-        setApplicants((prev) =>
-          prev.map((app) => (app.id === id ? { ...app, comments: feedback } : app))
-        );
-      }
-    } catch (error) {
-      console.error("Error analyzing resume:", error);
+  const handleAnalyzeResume = async (applicant: Applicant) => {
+    console.log(`🔍 Starting analysis for ${applicant.name}`);
+  
+    if (!applicant.resume_url || !applicant.resume_url.startsWith("http")) {
+      console.error("🚨 Invalid Resume URL:", applicant.resume_url);
+      alert("Invalid resume URL. Please check the uploaded file.");
+      return;
     }
-
-    setAnalyzing(null);
+  
+    setAnalyzing(applicant.id);
+  
+    try {
+      console.log(`📤 Sending resume URL to API: ${applicant.resume_url}`);
+  
+      // ✅ Send correct URL to extractResume API
+      const response = await fetch("/api/extractResume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeUrl: applicant.resume_url }),
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok) {
+        console.error("🚨 API Error:", result.error);
+        alert(`Error extracting resume text: ${result.error}`);
+        return;
+      }
+  
+      const extractedText = result.text;
+      if (!extractedText || extractedText.length < 50) {
+        console.error("🚨 No text extracted.");
+        alert("Failed to extract text from resume.");
+        return;
+      }
+  
+      console.log("📄 Resume Text Extracted:", extractedText.slice(0, 300)); // Log preview
+  
+      // ✅ Send extracted text to AI for analysis
+      console.log("🤖 Sending extracted text to AI...");
+      const aiFeedback = await analyzeResume(extractedText);
+  
+      // ✅ Save AI feedback in Supabase
+      const { error } = await supabase
+        .from("applications")
+        .update({ ai_feedback: aiFeedback })
+        .eq("id", applicant.id);
+  
+      if (error) {
+        console.error("🚨 Error updating AI feedback:", error);
+        alert("Failed to save AI feedback.");
+        return;
+      }
+  
+      setApplicants((prev) =>
+        prev.map((a) =>
+          a.id === applicant.id ? { ...a, ai_feedback: aiFeedback } : a
+        )
+      );
+  
+      console.log("✅ AI Feedback Saved!");
+    } catch (error) {
+      console.error("🚨 AI Analysis Failed:", error);
+      alert("Error analyzing resume.");
+    } finally {
+      setAnalyzing(null);
+    }
   };
-
-  const filteredApplicants =
-    filter === "All" ? applicants : applicants.filter((app) => app.status === filter);
+  
+  
+  
 
   return (
-    <div className="max-w-5xl mx-auto mt-10 p-6 rounded-lg bg-gray-100 shadow-lg">
-      <h1 className="text-3xl font-bold mb-4 text-gray-800">HR Dashboard - AI Resume Review</h1>
-
-      {/* ✅ Dropdown Filter */}
-      <div className="mb-4">
-        <label className="font-semibold mr-2 text-gray-700">Filter by Status:</label>
-        <select
-          className="border p-2 rounded bg-white text-gray-700"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        >
-          <option value="All">All</option>
-          <option value="Pending">Pending</option>
-          <option value="Reviewed">Reviewed</option>
-        </select>
-      </div>
+    <div className="max-w-6xl mx-auto mt-10 p-6 border shadow-lg rounded-lg">
+      <h1 className="text-2xl font-bold mb-4">HR Dashboard - AI Resume Review</h1>
 
       {loading && <p className="text-gray-600">Loading applicants...</p>}
       {error && <p className="text-red-500">{error}</p>}
 
-      <table className="w-full border-collapse shadow-lg">
+      <table className="w-full border-collapse border border-gray-300">
         <thead>
-          <tr className="bg-gray-700 text-white">
-            <th className="border p-3">Name</th>
-            <th className="border p-3">Email</th>
-            <th className="border p-3">Resume</th>
-            <th className="border p-3">AI Feedback</th>
-            <th className="border p-3">Action</th>
+          <tr className="bg-gray-200">
+            <th className="border p-2">Name</th>
+            <th className="border p-2">Email</th>
+            <th className="border p-2">Resume</th>
+            <th className="border p-2">AI Feedback</th>
+            <th className="border p-2">Action</th>
           </tr>
         </thead>
         <tbody>
-          {filteredApplicants.map((applicant) => (
-            <tr key={applicant.id} className="border">
-              <td className="border p-2 text-gray-800">{applicant.name}</td>
-              <td className="border p-2 text-gray-800">{applicant.email}</td>
-              <td className="border p-2">
-                <a href={applicant.resume_url} target="_blank" className="text-blue-600 underline">
-                  View Resume
-                </a>
-              </td>
-              <td className="border p-2 text-gray-800">
-                {applicant.comments || "No AI feedback yet"}
-              </td>
-              <td className="border p-2">
-                {analyzing === applicant.id ? (
-                  <span className="text-gray-500">Analyzing...</span>
-                ) : (
+          {applicants.length > 0 ? (
+            applicants.map((applicant) => (
+              <tr key={applicant.id} className="border">
+                <td className="border p-2">{applicant.name}</td>
+                <td className="border p-2">{applicant.email}</td>
+                <td className="border p-2">
+                  <a href={applicant.resume_url} target="_blank" className="text-blue-500 underline">
+                    View Resume
+                  </a>
+                </td>
+                <td className="border p-2">
+                  {applicant.ai_feedback || "No AI feedback yet"}
+                </td>
+                <td className="border p-2">
                   <button
-                    className="bg-purple-500 text-white px-3 py-1 rounded"
-                    onClick={() => analyzeAndSaveFeedback(applicant.id, applicant.resume_url || "")}
-                    disabled={!applicant.resume_url}
+                    onClick={() => handleAnalyzeResume(applicant)}
+                    className="bg-blue-500 text-white px-4 py-2 rounded"
+                    disabled={analyzing === applicant.id}
                   >
-                    Analyze Resume
+                    {analyzing === applicant.id ? "Analyzing..." : "Analyze Resume"}
                   </button>
-                )}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={5} className="text-center p-4">
+                No applications found.
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </div>

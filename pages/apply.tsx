@@ -6,47 +6,48 @@ export default function Apply() {
   const [email, setEmail] = useState("");
   const [resume, setResume] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-
-    if (file && file.type !== "application/pdf") {
-      setError("Only PDF resumes are allowed.");
-      setResume(null);
-    } else {
-      setError(null);
-      setResume(file);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     if (!name || !email || !resume) {
-      setError("Please fill out all fields.");
+      alert("Please fill out all fields.");
       setLoading(false);
       return;
     }
 
+    // ✅ Ensure the resume is a PDF
+    if (resume.type !== "application/pdf") {
+      alert("Only PDF files are allowed.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Upload resume to Supabase Storage
     const fileExt = resume.name.split(".").pop();
     const fileName = `${Date.now()}.${fileExt}`;
     const { data, error } = await supabase.storage.from("resumes").upload(fileName, resume);
 
     if (error) {
-      setError("Error uploading resume.");
+      alert("Error uploading resume.");
+      console.error(error);
       setLoading(false);
       return;
     }
 
+    // ✅ Construct Public URL
     const resumeUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/resumes/${fileName}`;
+    console.log("📤 Uploaded Resume URL:", resumeUrl); // ✅ Log URL
+
+    // ✅ Store in DB
     const { error: insertError } = await supabase
       .from("applications")
       .insert([{ name, email, resume_url: resumeUrl }]);
 
     if (insertError) {
-      setError("Error saving application.");
+      alert("Error saving application.");
+      console.error(insertError);
     } else {
       alert("Application submitted successfully!");
       setName("");
@@ -58,9 +59,8 @@ export default function Apply() {
   };
 
   return (
-    <div className="flex flex-col items-center mt-10 p-6 max-w-md mx-auto border shadow-lg rounded-lg bg-white">
+    <div className="flex flex-col items-center mt-10 p-6 max-w-md mx-auto border shadow-lg rounded-lg">
       <h1 className="text-2xl font-bold mb-4">Job Application</h1>
-      {error && <p className="text-red-500 mb-2">{error}</p>}
       <form onSubmit={handleSubmit} className="w-full space-y-4">
         <input
           className="border p-2 w-full"
@@ -81,8 +81,8 @@ export default function Apply() {
         <input
           className="border p-2 w-full"
           type="file"
-          accept="application/pdf"
-          onChange={handleFileChange}
+          accept=".pdf"
+          onChange={(e) => setResume(e.target.files?.[0] || null)}
           required
         />
         <button

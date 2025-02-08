@@ -102,3 +102,33 @@ body {
     padding: 20px;
   }
   
+  /* ✅ Light Mode */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f5f7fa; /* Soft Gray */
+    color: #2d3748; /* Dark Gray for Text */
+  }
+  
+  /* ✅ Dark Mode */
+  .dark body {
+    background-color: #1a202c; /* Dark Gray */
+    color: #e2e8f0; /* Light Gray for Text */
+  }
+  
+  /* ✅ Sidebar Styling */
+  .dark .bg-gray-900 {
+    background-color: #111827; /* Even Darker */
+  }
+  
+  .dark .text-gray-300 {
+    color: #a0aec0;
+  }
+  
+  .dark .hover\:bg-gray-700:hover {
+    background-color: #2d3748;
+  }
+  
+  .dark .bg-blue-600 {
+    background-color: #4299e1;
+  }
+  
