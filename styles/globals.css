@@ -1,3 +1,104 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* ✅ Global Reset & Font */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f5f7fa; /* Soft Grayish-Blue */
+    color: #2d3748; /* Dark Gray for Text */
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* ✅ Table Styling */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  th {
+    background-color: #2d3748; /* Dark Gray */
+    color: white;
+    padding: 12px;
+    text-align: left;
+  }
+  
+  td {
+    padding: 10px;
+    border-bottom: 1px solid #a0aec0; /* Neutral Gray */
+  }
+  
+  tr:nth-child(even) {
+    background-color: #e2e8f0; /* Light Gray */
+  }
+  
+  tr:nth-child(odd) {
+    background-color: #cbd5e0; /* Softer Blue-Gray */
+  }
+  
+  /* ✅ Buttons */
+  button {
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+    border: none;
+  }
+  
+  button:hover {
+    opacity: 0.85;
+  }
+  
+  .btn-primary {
+    background-color: #3182ce; /* Soft Blue */
+    color: white;
+  }
+  
+  .btn-success {
+    background-color: #38a169; /* Soft Green */
+    color: white;
+  }
+  
+  .btn-warning {
+    background-color: #d69e2e; /* Soft Yellow */
+    color: white;
+  }
+  
+  /* ✅ Input & Textarea */
+  input,
+  textarea,
+  select {
+    border: 1px solid #a0aec0; /* Neutral Gray */
+    padding: 8px;
+    border-radius: 5px;
+    width: 100%;
+    font-size: 14px;
+  }
+  
+  textarea {
+    resize: vertical;
+  }
+  
+  /* ✅ Card Styling */
+  .card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+  }
+  
+  /* ✅ Soft Shadows */
+  .shadow-lg {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* ✅ Container */
+  .container {
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
+  }
+  

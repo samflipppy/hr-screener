@@ -6,36 +6,47 @@ export default function Apply() {
   const [email, setEmail] = useState("");
   const [resume, setResume] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+
+    if (file && file.type !== "application/pdf") {
+      setError("Only PDF resumes are allowed.");
+      setResume(null);
+    } else {
+      setError(null);
+      setResume(file);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     if (!name || !email || !resume) {
-      alert("Please fill out all fields.");
+      setError("Please fill out all fields.");
       setLoading(false);
       return;
     }
 
-    // Upload resume to Supabase Storage
     const fileExt = resume.name.split(".").pop();
     const fileName = `${Date.now()}.${fileExt}`;
     const { data, error } = await supabase.storage.from("resumes").upload(fileName, resume);
 
     if (error) {
-      alert("Error uploading resume.");
-      console.error(error);
+      setError("Error uploading resume.");
       setLoading(false);
       return;
     }
 
-    // Store applicant info in database
     const resumeUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/resumes/${fileName}`;
-    const { error: insertError } = await supabase.from("applications").insert([{ name, email, resume_url: resumeUrl }]);
+    const { error: insertError } = await supabase
+      .from("applications")
+      .insert([{ name, email, resume_url: resumeUrl }]);
 
     if (insertError) {
-      alert("Error saving application.");
-      console.error(insertError);
+      setError("Error saving application.");
     } else {
       alert("Application submitted successfully!");
       setName("");
@@ -47,8 +58,9 @@ export default function Apply() {
   };
 
   return (
-    <div className="flex flex-col items-center mt-10 p-6 max-w-md mx-auto border shadow-lg rounded-lg">
+    <div className="flex flex-col items-center mt-10 p-6 max-w-md mx-auto border shadow-lg rounded-lg bg-white">
       <h1 className="text-2xl font-bold mb-4">Job Application</h1>
+      {error && <p className="text-red-500 mb-2">{error}</p>}
       <form onSubmit={handleSubmit} className="w-full space-y-4">
         <input
           className="border p-2 w-full"
@@ -69,8 +81,8 @@ export default function Apply() {
         <input
           className="border p-2 w-full"
           type="file"
-          accept=".pdf,.doc,.docx"
-          onChange={(e) => setResume(e.target.files?.[0] || null)}
+          accept="application/pdf"
+          onChange={handleFileChange}
           required
         />
         <button
