@@ -1,27 +1,36 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from './supabase';
+import { createContext, useContext } from 'react';
 import { User } from '@supabase/supabase-js';
 
-type AuthContextType = {
+export type UserType = 'applicant' | 'company';
+
+export type UserProfile = {
+  id: string;
+  user_id: string;
+  type: UserType;
+  company_id?: string;
+};
+
+export type AuthContextType = {
   user: User | null;
+  userProfile: UserProfile | null;
   loading: boolean;
 };
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  userProfile: null,
+  loading: true
+});
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
 
-  useEffect(() => {
-    // Check active sessions and subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  return { user, loading };
+export function useUserType() {
+  const { userProfile } = useAuth();
+  return userProfile?.type ?? null;
 } 
