@@ -43,6 +43,8 @@ export default function Sidebar() {
   );
 }
 
+//penis
+
 // ✅ Reusable Navigation Link Component
 function NavLink({ href, label, icon, active, collapsed }: { href: string; label: string; icon: React.ReactNode; active: boolean; collapsed: boolean }) {
   return (

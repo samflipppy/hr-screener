@@ -47,7 +47,7 @@ export default function Dashboard() {
       console.error("🚨 Invalid Resume URL:", applicant.resume_url);
       alert("Invalid resume URL. Please check the uploaded file.");
       return;
-    }
+    };
   
     setAnalyzing(applicant.id);
   
