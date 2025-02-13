@@ -25,32 +25,33 @@ async function extractTextFromPDF(resumeUrl: string): Promise<string> {
 }
 
 // ✅ Function to analyze resume using AI
-export async function analyzeResume(resumeUrl: string): Promise<string> {
+export async function analyzeResume(resumeText: string): Promise<string> {
   try {
-    // ✅ Extract text via API route
-    const resumeText = await extractTextFromPDF(resumeUrl);
-
-    // ✅ Limit resume text to 2000 characters
-    const truncatedText = resumeText.length > 2000 ? resumeText.slice(0, 2000) + "..." : resumeText;
-
     const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: "You are an AI that reviews resumes and provides feedback on job suitability.",
+          content: `You are an expert HR assistant. Analyze resumes and provide concise feedback in the following format:
+          
+          Skills: [Key skills identified]
+          Experience: [Years and relevance]
+          Strengths: [Top 3 strengths]
+          Areas for Growth: [2-3 areas]
+          Overall Fit: [Brief assessment]`
         },
         {
           role: "user",
-          content: `Analyze this resume and provide feedback:\n\n${truncatedText}`,
-        },
+          content: `Analyze this resume text:\n\n${resumeText}`
+        }
       ],
-      max_tokens: 250,
+      max_tokens: 500,
+      temperature: 0.7,
     });
 
-    return response.choices[0].message.content || "No feedback generated.";
+    return response.choices[0].message.content || "No analysis generated.";
   } catch (error) {
-    console.error("AI Error:", error);
-    return "Error generating feedback.";
+    console.error("AI Analysis Error:", error);
+    throw new Error("Failed to analyze resume");
   }
 }

@@ -2,11 +2,15 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import { Home, FileText, LayoutDashboard, Menu, Sun, Moon } from "lucide-react";
+import { useAuth } from '../utils/auth';
+import LoadingSpinner from './LoadingSpinner';
+import LoginRedirect from './LoginRedirect';
 
 export default function Sidebar() {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const { user, loading } = useAuth();
 
   const isActive = (path: string) => router.pathname === path;
 
@@ -16,6 +20,9 @@ export default function Sidebar() {
     setDarkMode(!darkMode);
     document.documentElement.classList.toggle("dark");
   };
+
+  if (loading) return <LoadingSpinner />;
+  if (!user) return <LoginRedirect />;
 
   return (
     <div className={`fixed top-0 left-0 h-screen ${collapsed ? "w-16" : "w-60"} bg-gray-900 text-white flex flex-col p-4 shadow-lg transition-all z-50`}>
@@ -42,6 +49,8 @@ export default function Sidebar() {
     </div>
   );
 }
+
+//penis
 
 // ✅ Reusable Navigation Link Component
 function NavLink({ href, label, icon, active, collapsed }: { href: string; label: string; icon: React.ReactNode; active: boolean; collapsed: boolean }) {

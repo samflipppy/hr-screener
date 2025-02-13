@@ -31,7 +31,7 @@ export default function Dashboard() {
         console.error("❌ Error fetching applicants:", error);
         setError("Failed to fetch applicants.");
       } else {
-        console.log("✅ Applicants fetched:", data);
+        console.log("✅ Fetched applicants with feedback:", data);
         setApplicants(data || []);
       }
       setLoading(false);
@@ -41,69 +41,53 @@ export default function Dashboard() {
   }, []);
 
   const handleAnalyzeResume = async (applicant: Applicant) => {
-    console.log(`🔍 Starting analysis for ${applicant.name}`);
-  
-    if (!applicant.resume_url || !applicant.resume_url.startsWith("http")) {
-      console.error("🚨 Invalid Resume URL:", applicant.resume_url);
-      alert("Invalid resume URL. Please check the uploaded file.");
+    if (!applicant.resume_url) {
+      alert("No resume URL found");
       return;
     }
-  
+
     setAnalyzing(applicant.id);
-  
     try {
-      console.log(`📤 Sending resume URL to API: ${applicant.resume_url}`);
-  
-      // ✅ Send correct URL to extractResume API
-      const response = await fetch("/api/extractResume", {
+      // Step 1: Extract text from PDF
+      const extractResponse = await fetch("/api/extractResume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resumeUrl: applicant.resume_url }),
       });
-  
-      const result = await response.json();
-  
-      if (!response.ok) {
-        console.error("🚨 API Error:", result.error);
-        alert(`Error extracting resume text: ${result.error}`);
-        return;
+
+      if (!extractResponse.ok) {
+        const error = await extractResponse.json();
+        throw new Error(error.details || 'Failed to extract PDF text');
       }
-  
-      const extractedText = result.text;
-      if (!extractedText || extractedText.length < 50) {
-        console.error("🚨 No text extracted.");
-        alert("Failed to extract text from resume.");
-        return;
-      }
-  
-      console.log("📄 Resume Text Extracted:", extractedText.slice(0, 300)); // Log preview
-  
-      // ✅ Send extracted text to AI for analysis
-      console.log("🤖 Sending extracted text to AI...");
-      const aiFeedback = await analyzeResume(extractedText);
-  
-      // ✅ Save AI feedback in Supabase
-      const { error } = await supabase
+
+      const { text } = await extractResponse.json();
+      if (!text) throw new Error("No text extracted from PDF");
+
+      // Step 2: Analyze with AI
+      const analysis = await analyzeResume(text);
+
+      // Step 3: Save to database
+      const { data, error: updateError } = await supabase
         .from("applications")
-        .update({ ai_feedback: aiFeedback })
-        .eq("id", applicant.id);
-  
-      if (error) {
-        console.error("🚨 Error updating AI feedback:", error);
-        alert("Failed to save AI feedback.");
-        return;
+        .update({ ai_feedback: analysis })
+        .eq("id", applicant.id)
+        .select();
+
+      if (updateError) {
+        console.error("Save Error:", updateError);
+        throw updateError;
       }
-  
-      setApplicants((prev) =>
-        prev.map((a) =>
-          a.id === applicant.id ? { ...a, ai_feedback: aiFeedback } : a
-        )
+
+      console.log("Saved feedback:", data); // Debug log
+
+      // Step 4: Update UI
+      setApplicants(prev =>
+        prev.map(a => a.id === applicant.id ? { ...a, ai_feedback: analysis } : a)
       );
-  
-      console.log("✅ AI Feedback Saved!");
-    } catch (error) {
-      console.error("🚨 AI Analysis Failed:", error);
-      alert("Error analyzing resume.");
+
+    } catch (error: any) {
+      console.error("Resume Analysis Error:", error);
+      alert(`Analysis failed: ${error.message}`);
     } finally {
       setAnalyzing(null);
     }

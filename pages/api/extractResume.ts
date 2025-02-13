@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import pdfParse from "pdf-parse";
+import pdf from "pdf-parse";
 
 // ✅ Function to validate a URL
 function isValidHttpUrl(url: string): boolean {
@@ -28,7 +28,7 @@ async function extractTextFromPDF(pdfUrl: string): Promise<string> {
 
     // ✅ Convert PDF buffer to text
     const pdfBuffer = await response.arrayBuffer();
-    const pdfData = await pdfParse(Buffer.from(pdfBuffer));
+    const pdfData = await pdf(Buffer.from(pdfBuffer));
 
     console.log("✅ Extracted PDF text:", pdfData.text.slice(0, 300)); // Log first 300 chars
     return pdfData.text || "No text extracted.";
@@ -38,38 +38,48 @@ async function extractTextFromPDF(pdfUrl: string): Promise<string> {
   }
 }
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method Not Allowed" });
-    }
-  
-    try {
-      const { resumeUrl } = req.body;
-  
-      console.log("🔍 Received resumeUrl:", resumeUrl);
-  
-      // ✅ Make sure we're dealing with a proper URL
-      if (!resumeUrl || typeof resumeUrl !== "string" || !resumeUrl.startsWith("http")) {
-        console.error("🚨 Invalid PDF URL:", resumeUrl);
-        return res.status(400).json({ error: "Invalid PDF URL." });
-      }
-  
-      console.log(`📥 Fetching PDF from: ${resumeUrl}`);
-  
-      const response = await fetch(resumeUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch PDF: ${response.statusText}`);
-      }
-  
-      const pdfBuffer = await response.arrayBuffer();
-      const pdfData = await pdfParse(Buffer.from(pdfBuffer));
-  
-      console.log("✅ Successfully extracted text:", pdfData.text.slice(0, 500));
-  
-      return res.status(200).json({ text: pdfData.text }); // ✅ Return extracted text
-    } catch (error) {
-      console.error("🚨 PDF Parsing Error:", error);
-      return res.status(500).json({ error: "Failed to extract resume text." });
-    }
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
+
+  try {
+    const { resumeUrl } = req.body;
+    
+    // Fetch the PDF file
+    const response = await fetch(resumeUrl);
+    if (!response.ok) throw new Error("Failed to fetch PDF");
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    // Parse PDF to text
+    const data = await pdf(buffer);
+    
+    // Clean and format the extracted text
+    const cleanText = data.text
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 2000); // Limit text length for OpenAI
+    
+    return res.status(200).json({ 
+      text: cleanText,
+      pages: data.numpages 
+    });
+  } catch (error: any) {
+    console.error("🚨 PDF Processing Error:", error);
+    return res.status(500).json({ 
+      error: "Failed to process PDF",
+      details: error.message 
+    });
+  }
+}
   
