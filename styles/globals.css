@@ -1,3 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Remove any button styles that might be overriding Tailwind */
+button {
+  all: unset;
+  cursor: pointer;
+}
+
+/* Add any custom styles below */
+
 /* ✅ Global Reset & Font */
 body {
     font-family: 'Inter', sans-serif;
