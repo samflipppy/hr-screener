@@ -11,7 +11,7 @@ export default function Sidebar() {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const { user, loading } = useAuth();
+  const { user, loading, userProfile } = useAuth();
   const userType = useUserType();
 
   const isActive = (path: string) => router.pathname === path;
@@ -35,21 +35,21 @@ export default function Sidebar() {
   if (loading) return <LoadingSpinner />;
   if (!user) return <LoginRedirect />;
 
+  const isCompany = userProfile?.type === 'company';
+
   const applicantLinks = [
     { href: "/", label: "Home", icon: <Home size={20} /> },
-    { href: "/companies", label: "Browse Companies", icon: <Building2 size={20} /> },
+    { href: "/jobs", label: "Browse Jobs", icon: <Building2 size={20} /> },
     { href: "/applications", label: "My Applications", icon: <FileText size={20} /> },
-    { href: "/tests", label: "Take Tests", icon: <LayoutDashboard size={20} /> },
   ];
 
   const companyLinks = [
     { href: "/", label: "Home", icon: <Home size={20} /> },
     { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
-    { href: "/applicants", label: "Applicants", icon: <Users size={20} /> },
     { href: "/settings", label: "Company Settings", icon: <Building2 size={20} /> },
   ];
 
-  const links = userType === 'company' ? companyLinks : applicantLinks;
+  const links = isCompany ? companyLinks : applicantLinks;
 
   return (
     <aside className="fixed inset-y-0 left-0 w-60 bg-gray-900 text-white shadow-lg">
@@ -60,7 +60,7 @@ export default function Sidebar() {
             <Menu size={24} />
           </button>
           <h1 className="text-2xl font-bold mt-4">
-            {userType === 'company' ? 'HR Dashboard' : 'Job Search'}
+            {isCompany ? 'HR Dashboard' : 'Job Search'}
           </h1>
         </div>
 

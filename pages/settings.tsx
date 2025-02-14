@@ -18,6 +18,8 @@ export default function Settings() {
   const { user, userProfile, loading } = useAuth();
   const [saving, setSaving] = useState(false);
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
+  const [isEditing, setIsEditing] = useState<number | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -48,7 +50,8 @@ export default function Settings() {
   const handleSave = async (index: number) => {
     console.log('handleSave called for index:', index);
     if (!userProfile?.company_id) {
-      console.error('No company_id found');
+      console.error('No company_id found in userProfile:', userProfile);
+      alert('Error: No company ID found');
       return;
     }
     setSaving(true);
@@ -56,27 +59,45 @@ export default function Settings() {
     const job = jobPostings[index];
     console.log('Saving job posting:', job);
   
-    const { data, error } = await supabase
-      .from('job_postings')
-      .upsert({
-        id: job.id,
-        company_id: userProfile.company_id,
-        position_name: job.position_name,
-        description: job.description,
-        preferences: job.preferences
-      });
+    try {
+      const { data, error } = await supabase
+        .from('job_postings')
+        .upsert({
+          id: job.id,
+          company_id: userProfile.company_id,
+          position_name: job.position_name,
+          description: job.description,
+          preferences: job.preferences
+        }, {
+          onConflict: 'id'
+        });
   
-    console.log('Supabase response:', data, error);
+      console.log('Supabase response:', { data, error });
   
-    if (error) {
-      console.error('Error saving job posting:', error);
-      alert('Failed to save job posting');
-    } else {
-      alert('Job posting saved successfully');
+      if (error) {
+        console.error('Error saving job posting:', error);
+        alert(`Failed to save job posting: ${error.message}`);
+      } else {
+        // Refresh the job postings list
+        const { data: updatedData, error: fetchError } = await supabase
+          .from('job_postings')
+          .select('*')
+          .eq('company_id', userProfile.company_id);
+  
+        if (fetchError) {
+          console.error('Error fetching updated job postings:', fetchError);
+        } else {
+          setJobPostings(updatedData || []);
+          alert('Job posting saved successfully');
+        }
+      }
+    } catch (err) {
+      console.error('Exception while saving:', err);
+      alert('An unexpected error occurred');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
-
 
   const handleAddJobPosting = () => {
     setJobPostings([...jobPostings, { 
@@ -84,6 +105,7 @@ export default function Settings() {
       description: '',
       preferences: ''
     }]);
+    setShowAddForm(true);
   };
 
   if (loading) return <div className="p-6">Loading settings...</div>;
@@ -92,70 +114,136 @@ export default function Settings() {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Job Postings</h1>
-        <div className="space-y-8">
-          {jobPostings.map((job, index) => (
-            <section key={index} className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-4">Position Profile</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Position Name</label>
-                  <input
-                    type="text"
-                    value={job.position_name}
-                    onChange={(e) =>
-                      setJobPostings((prev) =>
-                        prev.map((j, i) => (i === index ? { ...j, position_name: e.target.value } : j))
-                      )
-                    }
-                    className="mt-1 block w-full border rounded-md px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
-                  <textarea
-                    value={job.description}
-                    onChange={(e) =>
-                      setJobPostings((prev) =>
-                        prev.map((j, i) => (i === index ? { ...j, description: e.target.value } : j))
-                      )
-                    }
-                    rows={4}
-                    className="mt-1 block w-full border rounded-md px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Preferences</label>
-                  <textarea
-                    value={job.preferences}
-                    onChange={(e) =>
-                      setJobPostings((prev) =>
-                        prev.map((j, i) => (i === index ? { ...j, preferences: e.target.value } : j))
-                      )
-                    }
-                    rows={6}
-                    className="mt-1 block w-full border rounded-md px-3 py-2"
-                    placeholder="Describe the ideal candidate's skills, experience, and traits..."
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={() => handleSave(index)}
-                  disabled={saving}
-                  className="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save Job Posting'}
-                </button>
-              </div>
-            </section>
-          ))}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Job Postings</h1>
           <button
             onClick={handleAddJobPosting}
-            className="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600"
+            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
           >
-            Add Job Posting
+            Add New Position
           </button>
+        </div>
+
+        {/* Table of job postings */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Position Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Preferences
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {jobPostings.map((job, index) => (
+                <tr key={index}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {isEditing === index || (showAddForm && !job.id) ? (
+                      <input
+                        type="text"
+                        value={job.position_name}
+                        onChange={(e) =>
+                          setJobPostings((prev) =>
+                            prev.map((j, i) => (i === index ? { ...j, position_name: e.target.value } : j))
+                          )
+                        }
+                        className="w-full border rounded-md px-2 py-1"
+                      />
+                    ) : (
+                      <div className="text-sm font-medium text-gray-900">{job.position_name}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {isEditing === index || (showAddForm && !job.id) ? (
+                      <textarea
+                        value={job.description}
+                        onChange={(e) =>
+                          setJobPostings((prev) =>
+                            prev.map((j, i) => (i === index ? { ...j, description: e.target.value } : j))
+                          )
+                        }
+                        rows={3}
+                        className="w-full border rounded-md px-2 py-1"
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-500 line-clamp-2">{job.description}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {isEditing === index || (showAddForm && !job.id) ? (
+                      <textarea
+                        value={job.preferences}
+                        onChange={(e) =>
+                          setJobPostings((prev) =>
+                            prev.map((j, i) => (i === index ? { ...j, preferences: e.target.value } : j))
+                          )
+                        }
+                        rows={3}
+                        className="w-full border rounded-md px-2 py-1"
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-500 line-clamp-2">{job.preferences}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    {isEditing === index || (showAddForm && !job.id) ? (
+                      <div className="space-x-2">
+                        <button
+                          onClick={() => {
+                            setIsEditing(null);
+                            setShowAddForm(false);
+                          }}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleSave(index);
+                            setIsEditing(null);
+                            setShowAddForm(false);
+                          }}
+                          disabled={saving}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          {saving ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-x-2">
+                        <button
+                          onClick={() => setIsEditing(index)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            // Add delete functionality here
+                            if (confirm('Are you sure you want to delete this position?')) {
+                              // TODO: Implement delete
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </Layout>

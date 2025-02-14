@@ -126,7 +126,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
         <h2 className="text-3xl font-bold text-center">
-          {isSignUp ? 'Create an account' : 'Sign in to your account'}
+          {isSignUp ? `Create an account as ${userType}` : 'Sign in to your account'}
         </h2>
         
         {error && (
@@ -175,21 +175,24 @@ export default function Login() {
 
           {isSignUp && (
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 I am a...
               </label>
-              <div className="mt-2 space-x-4">
+              <div className="mt-2 space-x-4 flex">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     setUserType('applicant');
                   }}
-                  className={`px-4 py-2 rounded-md ${
-                    userType === 'applicant'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700'
-                  }`}
+                  className={`
+                    flex-1 px-4 py-2 rounded-md 
+                    ${userType === 'applicant' 
+                      ? 'bg-blue-600 text-white border-2 border-blue-600 shadow-md' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-transparent'
+                    }
+                    transition-all duration-200 ease-in-out
+                  `}
                 >
                   Job Seeker
                 </button>
@@ -199,11 +202,14 @@ export default function Login() {
                     e.preventDefault();
                     setUserType('company');
                   }}
-                  className={`px-4 py-2 rounded-md ${
-                    userType === 'company'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700'
-                  }`}
+                  className={`
+                    flex-1 px-4 py-2 rounded-md
+                    ${userType === 'company'
+                      ? 'bg-blue-600 text-white border-2 border-blue-600 shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-transparent'
+                    }
+                    transition-all duration-200 ease-in-out
+                  `}
                 >
                   Company
                 </button>
